@@ -1,0 +1,17 @@
+# Private MVP server: no video endpoint is directly published on the internet.
+# First copy config.example.toml to config.toml, set [app] api_key and
+# providers privately, and keep config.toml excluded from git.
+services:
+  video-engine:
+    image: ghcr.io/harry0703/moneyprinterturbo:latest
+    restart: unless-stopped
+    command: ["python3", "main.py"]
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./config.toml:/MoneyPrinterTurbo/config.toml:ro
+      - ./storage:/MoneyPrinterTurbo/storage
+    mem_limit: 4g
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true

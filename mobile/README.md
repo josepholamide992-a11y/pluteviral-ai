@@ -8,7 +8,7 @@ React Native / Expo creator console for Plutevia Limited. The MoneyPrinterTurbo 
 - AI script, social metadata and render job calls to a connected MoneyPrinterTurbo HTTPS API.
 - Progress refresh, completed MP4 download and native share sheet.
 - The engine x-api-key and origin are stored in Expo SecureStore on the device.
-- Projects and drafts exist only in the current app session; share text before leaving.
+- Projects and drafts persist on the device using Expo SQLite; use the share sheet to back up important text.
 
 ## What needs infrastructure
 - A running privately controlled MoneyPrinterTurbo server with config.toml settings for LLM, media source, subtitles, ffmpeg and a nonempty api_key.

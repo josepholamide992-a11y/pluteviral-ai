@@ -5,6 +5,7 @@ import {
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import * as SecureStore from 'expo-secure-store';
+import DraftStorage from 'expo-sqlite/kv-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
@@ -39,6 +40,7 @@ function AppInner() {
   const [niche, setNiche] = useState<Niche>('Storytelling');
   const [platform, setPlatform] = useState<Platform>('TikTok');
   const [drafts, setDrafts] = useState<Draft[]>([]);
+  const [draftsRestored, setDraftsRestored] = useState(false);
   const [activeId, setActiveId] = useState<string | null>(null);
   const [origin, setOrigin] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -54,6 +56,42 @@ function AppInner() {
     return () => { mounted = false; };
   }, []);
 
+  useEffect(() => {
+    let mounted = true;
+    DraftStorage.getItem('pluteviral_drafts_v1')
+      .then(raw => {
+        if (!mounted || !raw) return;
+        const parsed: unknown = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return;
+        const verified = parsed.filter((d): d is Draft =>
+          d && typeof d === 'object' && typeof d.id === 'string'
+          && typeof d.topic === 'string' && typeof d.script === 'string'
+          && typeof d.caption === 'string' && typeof d.hashtags === 'string'
+        ).slice(0, 75);
+        setDrafts(verified);
+      })
+      .catch(() => { if (mounted) setNotice('Could not restore saved projects.'); })
+      .finally(() => { if (mounted) setDraftsRestored(true); });
+    return () => { mounted = false; };
+  }, []);
+
+  useEffect(() => {
+    if (!draftsRestored) return;
+    DraftStorage.setItem('pluteviral_drafts_v1', JSON.stringify(drafts.slice(0, 75)))
+      .catch(() => setNotice('Local saving failed. Export important scripts.'));
+  }, [drafts, draftsRestored]);
+
+  function deleteDraft(id: string) {
+    Alert.alert('Delete this project?', 'This removes its script and render history from this device.', [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => {
+        setDrafts(prev => prev.filter(d => d.id !== id));
+        if (activeId === id) setActiveId(null);
+        setNotice('Project deleted from this device.');
+      } },
+    ]);
+  }
+
   function patch(changes: Partial<Draft>) {
     if (!activeId) return;
     setDrafts(prev => prev.map(d => d.id === activeId ? { ...d, ...changes } : d));
@@ -62,7 +100,7 @@ function AppInner() {
   function startDraft() {
     try {
       const next = makeStarterDraft(topic, niche, platform);
-      setDrafts(prev => [next, ...prev]);
+      setDrafts(prev => [next, ...prev].slice(0, 75));
       setActiveId(next.id);
       setNotice('Editable starter outline created. Add original details before rendering.');
     } catch (error) {
@@ -148,7 +186,9 @@ function AppInner() {
     try {
       const host = normalizedServerUrl(origin);
       const resolved = new URL(active.videoUrl, host);
-      if (resolved.protocol !== 'https:') throw new Error('Video must have an HTTPS download URL.');
+      if (resolved.protocol !== 'https:' || resolved.origin !== new URL(host).origin) {
+        throw new Error('For safety, video downloads must use your configured HTTPS server.');
+      }
       const local = (FileSystem.cacheDirectory || FileSystem.documentDirectory) + 'pluteviral-' + active.id.replace(/[^a-z0-9-]/gi, '') + '.mp4';
       const headers = resolved.origin === new URL(host).origin && apiKey ? { 'x-api-key': apiKey } : {};
       const result = await FileSystem.downloadAsync(resolved.toString(), local, { headers });
@@ -227,13 +267,20 @@ function AppInner() {
       </> : page === 'library' ? <>
         <Text style={styles.eyebrow}>CREATOR STUDIO / 02</Text>
         <Text style={styles.hero}>Your <Text style={{ color: ACCENT }}>projects.</Text></Text>
-        <Text style={styles.sub}>Session drafts. Export important scripts before closing the app.</Text>
+        <Text style={styles.sub}>Projects are saved locally on this device. Export important scripts for backup.</Text>
         {drafts.length === 0 ? <View style={styles.card}><Text style={styles.empty}>No drafts yet. Create your first story.</Text><Action label='Go to creator' onPress={() => setPage('create')} /></View>
-          : drafts.map(d => <Pressable key={d.id} onPress={() => openDraft(d)} style={styles.project}>
+          : drafts.map(d => <View key={d.id} style={styles.project}>
             <Text style={styles.projectTitle}>{d.topic}</Text>
             <Text style={styles.projectMeta}>{d.platform}  •  {d.niche}  •  {d.status || 'Draft'}</Text>
-            <Text style={styles.projectOpen}>Open project  →</Text>
-          </Pressable>)}
+            <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 16 }}>
+              <Pressable onPress={() => openDraft(d)} accessibilityRole='button'>
+                <Text style={styles.projectOpen}>Open project  →</Text>
+              </Pressable>
+              <Pressable onPress={() => deleteDraft(d.id)} accessibilityRole='button'>
+                <Text style={[styles.projectOpen, { color: '#FDA4AF' }]}>Delete</Text>
+              </Pressable>
+            </View>
+          </View>)}
       </> : <>
         <Text style={styles.eyebrow}>CREATOR STUDIO / 03</Text>
         <Text style={styles.hero}>Connect your <Text style={{ color: ACCENT }}>engine.</Text></Text>
