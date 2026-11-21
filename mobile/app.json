@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "PluteViral AI",
+    "slug": "pluteviral-ai",
+    "scheme": "pluteviral",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "dark",
+    "backgroundColor": "#0B1020",
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.plutevia.pluteviral"
+    },
+    "android": {
+      "package": "com.plutevia.pluteviral",
+      "edgeToEdgeEnabled": true
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "business": "Plutevia Limited"
+    }
+  }
+}
