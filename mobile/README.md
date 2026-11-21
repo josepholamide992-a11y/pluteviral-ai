@@ -5,7 +5,7 @@ React Native / Expo creator console for Plutevia Limited. The MoneyPrinterTurbo 
 ## Functional prototype features
 - TikTok, YouTube Shorts and Instagram Reels 9:16 content workflow.
 - Four starter content niches, editable templates, caption and hashtag editor.
-- AI script, social metadata and render job calls to a connected MoneyPrinterTurbo HTTPS API.
+- Read-only authenticated server connection test, AI script, social metadata and render job calls to a connected MoneyPrinterTurbo HTTPS API.
 - Progress refresh, completed MP4 download and native share sheet.
 - The engine x-api-key and origin are stored in Expo SecureStore on the device.
 - Projects and drafts persist on the device using Expo SQLite; use the share sheet to back up important text.
@@ -13,6 +13,7 @@ React Native / Expo creator console for Plutevia Limited. The MoneyPrinterTurbo 
 ## What needs infrastructure
 - A running privately controlled MoneyPrinterTurbo server with config.toml settings for LLM, media source, subtitles, ffmpeg and a nonempty api_key.
 - HTTPS reverse proxy, appropriate firewall/access control, quotas and a server-side broker before accepting external users.
+- Video rendering explicitly asks for confirmation because metered AI/media APIs may incur charges.
 - No MP4 can be rendered without a configured working video server. The app must not be represented as a finished generator until this is connected and tested.
 - Direct TikTok/YouTube publishing, scheduling, billing, auth, cloud project persistence and store publication are not part of this MVP.
 

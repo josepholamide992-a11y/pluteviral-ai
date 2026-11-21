@@ -35,6 +35,14 @@ export async function generateMetadata(origin: string, apiKey: string, draft: Dr
       language: 'en',
     });
 }
+export async function checkServer(origin: string, apiKey: string) {
+  const result = await request<{ tasks: TaskStatus[]; total: number }>(
+    origin, apiKey, '/api/v1/tasks?page_size=1', 'GET',
+  );
+  if (!Array.isArray(result.tasks)) throw new Error('Unexpected server response.');
+  return { ok: true, total: result.total };
+}
+
 export async function startVideoJob(origin: string, apiKey: string, body: object) {
   return request<{ task_id: string }>(origin, apiKey, '/api/v1/videos', 'POST', body);
 }

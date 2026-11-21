@@ -8,7 +8,7 @@ import * as SecureStore from 'expo-secure-store';
 import DraftStorage from 'expo-sqlite/kv-store';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
-import { generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
+import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
 import { makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
 
 const INK = '#EEF2FF';
@@ -46,6 +46,7 @@ function AppInner() {
   const [apiKey, setApiKey] = useState('');
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
+  const [serverVerified, setServerVerified] = useState(false);
   const active = drafts.find(d => d.id === activeId);
 
   useEffect(() => {
@@ -128,11 +129,31 @@ function AppInner() {
     setNotice('');
     try {
       normalizedServerUrl(origin);
+      if (!apiKey.trim()) throw new Error('Enter the configured server API key under Settings before requesting AI or video rendering.');
       const result = await operation();
       completed(result);
     } catch (error) {
       Alert.alert('Server request failed', String((error as Error).message));
     } finally { setBusy(false); }
+  }
+
+  async function testConnection() {
+    await connected(() => checkServer(origin, apiKey), result => {
+      setServerVerified(result.ok);
+      setNotice('Server connection verified. The API accepted your credentials.');
+    });
+  }
+
+  function confirmRender() {
+    if (!active) return;
+    Alert.alert(
+      'Start video rendering?',
+      'MoneyPrinterTurbo may consume paid AI, media, or hosting resources. Proceed only if your provider budget permits it.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Render video', onPress: () => { void renderVideo(); } },
+      ],
+    );
   }
 
   async function scriptFromAi() {
@@ -254,7 +275,7 @@ function AppInner() {
           <TextInput multiline style={styles.input} value={active.caption} onChangeText={caption => patch({ caption })} />
           <Text style={styles.label}>HASHTAGS</Text>
           <TextInput style={styles.input} value={active.hashtags} onChangeText={hashtags => patch({ hashtags })} />
-          <Action label='Render 9:16 video  →' disabled={busy} onPress={renderVideo} />
+          <Action label='Render 9:16 video  →' disabled={busy} onPress={confirmRender} />
           <Action label='Share script & caption' secondary onPress={shareDraft} />
           {active.taskId ? <View style={styles.job}>
             <Text style={styles.jobHeading}>RENDER STATUS</Text>
@@ -287,14 +308,16 @@ function AppInner() {
         <Text style={styles.sub}>PluteViral uses your own MoneyPrinterTurbo render server. Without it, local templates and text sharing still work.</Text>
         <View style={styles.card}>
           <Text style={styles.label}>HTTPS SERVER ORIGIN</Text>
-          <TextInput value={origin} onChangeText={setOrigin} style={styles.input}
+          <TextInput value={origin} onChangeText={value => { setOrigin(value); setServerVerified(false); }} style={styles.input}
             autoCapitalize='none' autoCorrect={false} keyboardType='url'
             placeholder='https://video.yourdomain.com' placeholderTextColor='#67758E' />
           <Text style={styles.label}>SERVER API KEY</Text>
-          <TextInput value={apiKey} onChangeText={setApiKey} style={styles.input}
+          <TextInput value={apiKey} onChangeText={value => { setApiKey(value); setServerVerified(false); }} style={styles.input}
             secureTextEntry autoCapitalize='none' autoCorrect={false}
             placeholder='Stored securely on your device' placeholderTextColor='#67758E' />
           <Action label='Save secure connection' onPress={saveSettings} />
+          <Action label='Test server connection' secondary disabled={busy} onPress={testConnection} />
+          {serverVerified ? <Text style={styles.connectionOk}>● Server connection verified</Text> : null}
           <Text style={styles.help}>For private testing only. A production multi-user app needs a server-side job broker; never share a master API key with customers.</Text>
           <Pressable onPress={() => Linking.openURL('https://github.com/harry0703/MoneyPrinterTurbo')}>
             <Text style={styles.link}>MoneyPrinterTurbo open-source engine ↗</Text>
@@ -357,6 +380,7 @@ const styles = StyleSheet.create({
   projectMeta: { color: MUTED, fontSize: 11 },
   projectOpen: { color: ACCENT, fontSize: 12, fontWeight: '800', marginTop: 15 },
   link: { color: ACCENT, marginTop: 15, fontWeight: '700', fontSize: 12 },
+  connectionOk: { color: ACCENT, marginTop: 13, fontWeight: '800', fontSize: 12 },
   busy: { flexDirection: 'row', gap: 10, alignItems: 'center', marginBottom: 15 },
   muted: { color: MUTED, fontSize: 12 },
   notice: { padding: 13, backgroundColor: '#253D27', borderRadius: 13, marginBottom: 17 },

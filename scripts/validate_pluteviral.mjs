@@ -18,6 +18,8 @@ const checks = [
   ['Secure key storage', app.includes("SecureStore.setItemAsync('pluteviral_api_key'")],
   ['Key-protected API calls', api.includes("'x-api-key': apiKey")],
   ['Actual video task submission', api.includes("'/api/v1/videos'")],
+  ['Connection diagnostics', api.includes("'/api/v1/tasks?page_size=1'") && app.includes('testConnection')],
+  ['Render cost confirmation', app.includes("Alert.alert(\n      'Start video rendering?'")],
   ['Actual task status lookup', api.includes("'/api/v1/tasks/'")],
   ['HTTPS endpoint validation', content.includes('https:')],
   ['No public inbound binding', compose.includes('127.0.0.1:8080:8080')],
