@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run test:core && npm run typecheck && npm run check:mobile:bundles && npm run build:web && npx playwright install chromium && npm run test:ui",
+  "buildCommand": "npm run test:core && npm run typecheck && npm run check:mobile:bundles && npm run build:web",
   "outputDirectory": "dist",
   "framework": null,
   "rewrites": [

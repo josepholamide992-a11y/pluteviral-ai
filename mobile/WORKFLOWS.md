@@ -52,3 +52,11 @@ This feature is **not** an AI voiceover, lip-sync renderer, or automatic song sy
 The protected Vercel deployment now attempts to install Playwright Chromium and exercise the actual browser UI against an Expo dev server. It includes a real local video creation-and-download test. These tests do not contact a paid AI provider.
 
 If a build host cannot launch a Chromium browser, the release must stay on the last verified version until the browser environment is corrected or CI is moved to a supported runner.
+
+## Browser test runner migration (22 November 2026)
+
+Vercel's build image successfully completed TypeScript, 13 unit tests, and iOS/Android/Web Metro bundles, **but Playwright Chromium could not launch** because the build image did not contain `libnspr4.so`. That is a missing Linux system library, not evidence that the browser tests failed at the product level.
+
+The Vercel build continues to enforce core tests, strict TypeScript and all three bundles. The browser E2E workflow is kept in `.github/workflows/mobile-e2e.yml` to run on a supported Ubuntu GitHub Actions runner with `npx playwright install --with-deps chromium`. The E2E suite is not counted as passed until its own run has completed successfully.
+
+When deploying to production, make sure no master MoneyPrinterTurbo API key is shipped to clients. The hosted web preview remains authentication-protected.

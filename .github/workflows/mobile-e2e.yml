@@ -1,0 +1,55 @@
+name: PluteViral browser E2E
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-e2e.yml'
+  pull_request:
+    paths:
+      - 'mobile/**'
+      - '.github/workflows/mobile-e2e.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pluteviral-e2e-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-tests:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - name: Install dependencies
+        run: npm install --no-audit --no-fund
+      - name: Install Playwright Chromium and OS dependencies
+        run: npx playwright install --with-deps chromium
+      - name: Run creator browser tests
+        env:
+          CI: '1'
+        run: npm run test:ui
+      - name: Upload failed browser trace
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pluteviral-browser-test-failure
+          path: |
+            mobile/test-results/
+            mobile/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 3
