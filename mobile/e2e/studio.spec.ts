@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { Buffer } from 'node:buffer';
 
 test('create, edit and restore a project', async ({ page }) => {
   await page.goto('/');
