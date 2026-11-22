@@ -225,7 +225,7 @@ function AppInner() {
         throw new Error('For safety, video downloads must use your configured HTTPS server.');
       }
       const local = (FileSystem.cacheDirectory || FileSystem.documentDirectory) + 'pluteviral-' + active.id.replace(/[^a-z0-9-]/gi, '') + '.mp4';
-      const headers = resolved.origin === new URL(host).origin && apiKey ? { 'x-api-key': apiKey } : {};
+      const headers: Record<string, string> = apiKey ? { 'x-api-key': apiKey } : {};
       const result = await FileSystem.downloadAsync(resolved.toString(), local, { headers });
       if (result.status !== 200) throw new Error('Download failed with HTTP ' + result.status);
       if (!(await Sharing.isAvailableAsync())) throw new Error('File sharing is unavailable on this device.');
