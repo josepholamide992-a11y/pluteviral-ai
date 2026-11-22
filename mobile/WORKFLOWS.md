@@ -38,3 +38,11 @@ The protected Expo Web app also includes a web-app manifest and SVG application 
 This adds the **web studio** to the Home Screen; it is not a signed iOS IPA or Android APK. It still requires authentication to access its protected hosted version. Local video output depends on browser MediaRecorder capabilities, so a supported browser may export MP4 or WebM.
 
 The app does not install an offline service worker and does not claim guaranteed offline access. An active tab is required during browser video recording.
+
+## Creator-owned soundtrack in free browser mode
+
+The free browser renderer can optionally attach one **user-selected audio file** (MP3, M4A, WAV, or another browser-decodable audio format) under **25 MB**. The app processes this audio entirely within the browser using Web Audio and adds it to the canvas video stream for MediaRecorder. It loops the selected track if the storyboard is longer than the track. A playback preview is shown before download.
+
+Only select music you created or have permission to use. Platform copyright rules still apply. If an audio codec or mixed-stream recording is unsupported on a specific browser, use the silent export or a different browser. An uploaded file is not persisted with the draft, and the app does not send it to any remote provider.
+
+This feature is **not** an AI voiceover, lip-sync renderer, or automatic song synchronization.

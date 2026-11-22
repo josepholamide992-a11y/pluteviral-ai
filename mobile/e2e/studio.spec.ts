@@ -53,3 +53,20 @@ test('free video mode is available without backend credentials', async ({ page }
   await expect(page.getByText('Make free silent video', { exact: false })).toBeVisible();
   await expect(page.getByText('Connect the video engine to render')).toBeVisible();
 });
+
+test('user can attach an audio file to a free video draft without uploading it', async ({ page }) => {
+  await page.goto('/');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('Song lyrics reel');
+  await page.getByText('Create starter outline', { exact: false }).click();
+  const chooser = page.waitForEvent('filechooser');
+  await page.getByText('Add my song or audio').click();
+  await (await chooser).setFiles({
+    name: 'my-own-song.wav',
+    mimeType: 'audio/wav',
+    buffer: Buffer.from([0x52, 0x49, 0x46, 0x46, 0x00, 0x00, 0x00, 0x00]),
+  });
+  await expect(page.getByText('Music attached: my-own-song.wav', { exact: false })).toBeVisible();
+  await expect(page.getByText('Make free music video', { exact: false })).toBeVisible();
+  await page.getByText('Remove music').click();
+  await expect(page.getByText('Make free silent video', { exact: false })).toBeVisible();
+});

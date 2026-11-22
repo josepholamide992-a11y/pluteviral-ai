@@ -113,3 +113,12 @@ test('storyboard refuses unrenderable and overly long scripts', () => {
   draft.script = 'long '.repeat(400);
   assert.throws(() => buildStoryboard(draft), /1,500/);
 });
+
+test('audio selection accepts real formats and refuses risky files', () => {
+  const { validateAudioAsset } = require('../.core-test-build/localAudio.js');
+  assert.doesNotThrow(() => validateAudioAsset({ name: 'original.mp3', size: 1024, type: 'audio/mpeg' }));
+  assert.doesNotThrow(() => validateAudioAsset({ name: 'instrumental.m4a', size: 4096, type: '' }));
+  assert.throws(() => validateAudioAsset({ name: 'application.exe', size: 1024, type: 'application/octet-stream' }), /audio file/);
+  assert.throws(() => validateAudioAsset({ name: 'silence.wav', size: 0, type: 'audio/wav' }), /empty/);
+  assert.throws(() => validateAudioAsset({ name: 'huge.mp3', size: 26 * 1024 * 1024, type: 'audio/mpeg' }), /25 MB/);
+});

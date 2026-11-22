@@ -9,6 +9,9 @@ import { getSavedSettings, saveSavedSettings } from './src/serverSettings';
 import { exportVideo } from './src/videoExport';
 import { shareText } from './src/textShare';
 import { createLocalVideo, downloadLocalVideo, type LocalVideoResult } from './src/localRender';
+import { pickLocalAudio } from './src/audioPicker';
+import type { LocalAudioAsset } from './src/localAudio';
+import LocalVideoPreview from './src/LocalVideoPreview';
 import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
 import { isSavedDraft, makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
 
@@ -51,6 +54,7 @@ function AppInner() {
   const [serverVerified, setServerVerified] = useState(false);
   const [localRendering, setLocalRendering] = useState(false);
   const [localProgress, setLocalProgress] = useState(0);
+  const [localAudio, setLocalAudio] = useState<LocalAudioAsset | null>(null);
   const [localVideo, setLocalVideo] = useState<(LocalVideoResult & { draftId: string }) | null>(null);
   const localAbort = useRef<AbortController | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
@@ -131,6 +135,7 @@ function AppInner() {
       const next = makeStarterDraft(topic, niche, platform);
       setDrafts(prev => [next, ...prev].slice(0, 75));
       setActiveId(next.id);
+      setLocalAudio(null);
       setLocalVideo(null);
       setLocalProgress(0);
       setNotice('Editable starter outline created. Add original details before rendering.');
@@ -229,6 +234,26 @@ function AppInner() {
     } catch (error) { setErrorMessage('Share unavailable: ' + String(error)); }
   }
 
+  async function selectLocalSong() {
+    if (localRendering) return;
+    setErrorMessage('');
+    try {
+      const selection = await pickLocalAudio();
+      if (!selection) return;
+      setLocalAudio(selection);
+      setLocalVideo(null);
+      setNotice('Audio selected: ' + selection.name + '. It stays on this device.');
+    } catch (error) {
+      setErrorMessage('Could not select audio: ' + String((error as Error).message));
+    }
+  }
+
+  function removeLocalSong() {
+    setLocalAudio(null);
+    setLocalVideo(null);
+    setNotice('Audio removed from this video.');
+  }
+
   async function renderLocally() {
     if (!active || localRendering) return;
     const draft = { ...active };
@@ -240,7 +265,7 @@ function AppInner() {
     setNotice('');
     setErrorMessage('');
     try {
-      const result = await createLocalVideo(draft, setLocalProgress, controller.signal);
+      const result = await createLocalVideo(draft, setLocalProgress, controller.signal, localAudio || undefined);
       if (!controller.signal.aborted) {
         setLocalVideo({ ...result, draftId: draft.id });
         setNotice('Your silent motion-text video is ready. Tap Download to save it.');
@@ -318,6 +343,7 @@ function AppInner() {
     setTopic(draft.topic);
     setNiche(draft.niche);
     setPlatform(draft.platform);
+    setLocalAudio(null);
     setLocalVideo(null);
     setLocalProgress(0);
     setPage('create');
@@ -385,12 +411,15 @@ function AppInner() {
             <Text style={styles.connectionPromptTitle}>Connect the video engine to render</Text>
             <Text style={styles.connectionPromptBody}>Your local outline works now. Video generation requires a private HTTPS MoneyPrinterTurbo server. Configure it in Settings →</Text>
           </Pressable> : null}
-          <Action label='Render 9:16 video  →' disabled={busy || !origin || !apiKey} onPress={confirmRender} />
+          <Action label='Render 9:16 video  →' disabled={busy || localRendering || !origin || !apiKey} onPress={confirmRender} />
           {DevicePlatform.OS === 'web' ? <View style={styles.localCard}>
             <Text style={styles.localKicker}>NO SERVER · FREE EXPORT</Text>
             <Text style={styles.localTitle}>Create a motion-text video</Text>
-            <Text style={styles.localDescription}>Turns your edited script into a silent 9:16 video with animated typography. No AI footage or voiceover. Keep this tab open while it renders. MP4 is used where supported; otherwise WebM.</Text>
-            {!localRendering ? <Action label='Make free silent video  →' disabled={busy} onPress={() => { void renderLocally(); }} />
+            <Text style={styles.localDescription}>Use your own words and optional music to make a 9:16 animated-text video. No AI footage or voiceover. Keep the tab active during rendering. MP4 is used where supported; otherwise WebM.</Text>
+            {localAudio ? <Text style={styles.localStatus}>Music attached: {localAudio.name} · {(localAudio.size / 1024 / 1024).toFixed(1)} MB</Text> : <Text style={styles.help}>Add your own licensed song or instrumental, or render a silent video. Audio is never uploaded.</Text>}
+            <Action label={localAudio ? 'Change music file' : 'Add my song or audio'} secondary disabled={localRendering || busy} onPress={() => { void selectLocalSong(); }} />
+            {localAudio ? <Action label='Remove music' secondary disabled={localRendering || busy} onPress={removeLocalSong} /> : null}
+            {!localRendering ? <Action label={localAudio ? 'Make free music video  →' : 'Make free silent video  →'} disabled={busy} onPress={() => { void renderLocally(); }} />
               : <>
                 <Text style={styles.localStatus}>Rendering video… {localProgress}%</Text>
                 <View style={styles.progressTrack}><View style={[styles.progressFill, { width: (localProgress + '%') as `${number}%` }]} /></View>
@@ -398,6 +427,7 @@ function AppInner() {
               </>}
             {localVideo && localVideo.draftId === activeId ? <>
               <Text style={styles.localStatus}>Ready · {localVideo.durationSeconds}s · {localVideo.format.toUpperCase()} · {Math.round(localVideo.blob.size / 1024)} KB</Text>
+              <LocalVideoPreview video={localVideo.blob} />
               <Action label={'Download ' + localVideo.format.toUpperCase() + ' video'} onPress={downloadLocalRender} />
             </> : null}
           </View> : null}

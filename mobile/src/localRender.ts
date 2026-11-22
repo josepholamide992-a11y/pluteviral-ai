@@ -1,4 +1,5 @@
 import type { Draft } from './content';
+import type { LocalAudioAsset } from './localAudio';
 export type LocalVideoResult = {
   blob: Blob;
   filename: string;
@@ -6,7 +7,7 @@ export type LocalVideoResult = {
   durationSeconds: number;
 };
 export async function createLocalVideo(
-  _draft: Draft, _onProgress: (progress: number) => void, _signal?: AbortSignal,
+  _draft: Draft, _onProgress: (progress: number) => void, _signal?: AbortSignal, _audio?: LocalAudioAsset,
 ): Promise<LocalVideoResult> {
   throw new Error('Local video export currently works in the browser preview. Native iOS/Android export requires a connected video engine.');
 }

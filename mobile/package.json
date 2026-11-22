@@ -10,7 +10,7 @@
     "typecheck": "tsc --noEmit",
     "web": "expo start --web",
     "test:ui": "playwright test",
-    "test:core": "tsc --ignoreConfig --target es2022 --module commonjs --strict --lib es2022,dom --outDir .core-test-build src/content.ts src/api.ts src/storyboard.ts && node --test tests/core.test.cjs",
+    "test:core": "tsc --ignoreConfig --target es2022 --module commonjs --strict --lib es2022,dom --outDir .core-test-build src/content.ts src/api.ts src/storyboard.ts src/localAudio.ts && node --test tests/core.test.cjs",
     "build:web": "expo export -p web",
     "release:review": "node scripts/release-review.cjs",
     "check:mobile:bundles": "expo export --platform ios --output-dir .native-bundle/ios && expo export --platform android --output-dir .native-bundle/android"
