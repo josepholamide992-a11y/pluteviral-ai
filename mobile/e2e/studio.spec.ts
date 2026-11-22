@@ -72,3 +72,21 @@ test('user can attach an audio file to a free video draft without uploading it',
   await page.getByText('Remove music').click();
   await expect(page.getByText('Make free silent video', { exact: false })).toBeVisible();
 });
+
+test('free creator exports a real local video download', async ({ page }) => {
+  test.setTimeout(80000);
+  await page.goto('/');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('A hopeful message');
+  await page.getByText('Create starter outline', { exact: false }).click();
+  await page.getByLabel('Video script').fill('Keep going. Your next chapter can be better.');
+  await page.getByText('Make free silent video', { exact: false }).click();
+  await expect(page.getByText('Ready ·', { exact: false })).toBeVisible({ timeout: 60000 });
+  const downloading = page.waitForEvent('download');
+  await page.getByText(/Download (MP4|WEBM) video/).click();
+  const file = await downloading;
+  expect(file.suggestedFilename()).toMatch(/pluteviral-.*\.(mp4|webm)$/);
+  const fs = await import('node:fs');
+  const downloadPath = await file.path();
+  expect(downloadPath).not.toBeNull();
+  expect(fs.statSync(downloadPath!).size).toBeGreaterThan(3000);
+});

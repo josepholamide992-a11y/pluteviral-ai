@@ -46,3 +46,9 @@ The free browser renderer can optionally attach one **user-selected audio file**
 Only select music you created or have permission to use. Platform copyright rules still apply. If an audio codec or mixed-stream recording is unsupported on a specific browser, use the silent export or a different browser. An uploaded file is not persisted with the draft, and the app does not send it to any remote provider.
 
 This feature is **not** an AI voiceover, lip-sync renderer, or automatic song synchronization.
+
+## Browser E2E quality gate
+
+The protected Vercel deployment now attempts to install Playwright Chromium and exercise the actual browser UI against an Expo dev server. It includes a real local video creation-and-download test. These tests do not contact a paid AI provider.
+
+If a build host cannot launch a Chromium browser, the release must stay on the last verified version until the browser environment is corrected or CI is moved to a supported runner.
