@@ -92,3 +92,24 @@ test('restored project schema rejects invalid or tampered drafts', () => {
   assert.equal(isSavedDraft({ ...valid, taskId: '../admin' }), false);
   assert.equal(isSavedDraft({ ...valid, script: 'x'.repeat(101_000) }), false);
 });
+
+test('storyboard produces timed 9:16-friendly scenes without external services', () => {
+  const { buildStoryboard, storyboardDurationMs } = require('../.core-test-build/storyboard.js');
+  const draft = makeStarterDraft('A story about resilience', 'Storytelling', 'YouTube Shorts');
+  draft.script = 'First scene has a surprising story. Second scene adds the real context. Third scene gives the conclusion.';
+  const scenes = buildStoryboard(draft);
+  assert.equal(scenes[0].kind, 'intro');
+  assert.equal(scenes[scenes.length - 1].kind, 'outro');
+  assert.ok(scenes.some(s => s.kind === 'story'));
+  assert.ok(storyboardDurationMs(scenes) >= 9000);
+  assert.ok(scenes.every(s => s.text.length <= 180));
+});
+
+test('storyboard refuses unrenderable and overly long scripts', () => {
+  const { buildStoryboard } = require('../.core-test-build/storyboard.js');
+  const draft = makeStarterDraft('Original title', 'Education', 'TikTok');
+  draft.script = '';
+  assert.throws(() => buildStoryboard(draft), /Write or edit/);
+  draft.script = 'long '.repeat(400);
+  assert.throws(() => buildStoryboard(draft), /1,500/);
+});

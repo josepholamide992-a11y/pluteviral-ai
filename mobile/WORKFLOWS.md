@@ -22,3 +22,11 @@ The app does not yet upload directly to YouTube or TikTok, schedule posts, colle
 ## Build/test
 
 From `mobile/`, run `npm ci` after generating and committing a lockfile. If no lockfile is present, use `npm install` first. Run `npm run typecheck`, `npm run test:core`, and `npm run build:web`. The protected Vercel preview project uses these checks. For native app builds, Expo EAS requires your own connected Expo account and the relevant Apple/Google signing setup.
+
+## Free local browser mode — functional fallback
+
+When using the browser preview on iPhone, Android or desktop, a separate button renders a **silent motion-text video** using browser Canvas + MediaRecorder. This mode does not contact MoneyPrinterTurbo, external AI providers, stock-photo services or a remote rendering API.
+
+It creates 540 × 960 portrait motion typography using the current topic, edited script and caption. The browser selects MP4 if its recorder supports MP4, otherwise exports WebM. A separate Download button saves the resulting file. The renderer enforces a 1,500-character maximum, limits the storyboard to nine body scenes, and displays progress. Keep the browser tab active throughout the recording. No audio, face footage, automatic captions over stock clips, TikTok posting, or AI imagery are implied.
+
+The native iOS/Android source still requires a **connected video engine** for MP4 rendering. Browser-based exports are available from the deployed web preview and can be tested on supported mobile browsers. This fallback is not a substitute for signed native app builds or the complete MoneyPrinterTurbo service.

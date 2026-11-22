@@ -8,6 +8,7 @@ import DraftStorage from './src/draftStore';
 import { getSavedSettings, saveSavedSettings } from './src/serverSettings';
 import { exportVideo } from './src/videoExport';
 import { shareText } from './src/textShare';
+import { createLocalVideo, downloadLocalVideo, type LocalVideoResult } from './src/localRender';
 import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
 import { isSavedDraft, makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
 
@@ -48,6 +49,10 @@ function AppInner() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [serverVerified, setServerVerified] = useState(false);
+  const [localRendering, setLocalRendering] = useState(false);
+  const [localProgress, setLocalProgress] = useState(0);
+  const [localVideo, setLocalVideo] = useState<(LocalVideoResult & { draftId: string }) | null>(null);
+  const localAbort = useRef<AbortController | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; actionLabel: string; destructive?: boolean; onConfirm: () => void } | null>(null);
   const active = drafts.find(d => d.id === activeId);
@@ -100,6 +105,9 @@ function AppInner() {
 
   function patch(changes: Partial<Draft>) {
     if (!activeId) return;
+    localAbort.current?.abort();
+    setLocalVideo(null);
+    setLocalProgress(0);
     setDrafts(prev => prev.map(d => d.id === activeId ? { ...d, ...changes } : d));
   }
 
@@ -123,6 +131,8 @@ function AppInner() {
       const next = makeStarterDraft(topic, niche, platform);
       setDrafts(prev => [next, ...prev].slice(0, 75));
       setActiveId(next.id);
+      setLocalVideo(null);
+      setLocalProgress(0);
       setNotice('Editable starter outline created. Add original details before rendering.');
     } catch (error) {
       setErrorMessage(String((error as Error).message));
@@ -219,6 +229,48 @@ function AppInner() {
     } catch (error) { setErrorMessage('Share unavailable: ' + String(error)); }
   }
 
+  async function renderLocally() {
+    if (!active || localRendering) return;
+    const draft = { ...active };
+    const controller = new AbortController();
+    localAbort.current = controller;
+    setLocalRendering(true);
+    setLocalProgress(0);
+    setLocalVideo(null);
+    setNotice('');
+    setErrorMessage('');
+    try {
+      const result = await createLocalVideo(draft, setLocalProgress, controller.signal);
+      if (!controller.signal.aborted) {
+        setLocalVideo({ ...result, draftId: draft.id });
+        setNotice('Your silent motion-text video is ready. Tap Download to save it.');
+      }
+    } catch (error) {
+      if (controller.signal.aborted) {
+        setNotice('Local video creation cancelled.');
+      } else {
+        setErrorMessage('Could not create local video: ' + String((error as Error).message));
+      }
+    } finally {
+      if (localAbort.current === controller) localAbort.current = null;
+      setLocalRendering(false);
+    }
+  }
+
+  function cancelLocalRender() {
+    localAbort.current?.abort();
+  }
+
+  function downloadLocalRender() {
+    if (!localVideo || localVideo.draftId !== activeId) return;
+    try {
+      downloadLocalVideo(localVideo);
+      setNotice('Your video download was requested. Check the browser Downloads folder.');
+    } catch (error) {
+      setErrorMessage('Could not download local video: ' + String((error as Error).message));
+    }
+  }
+
   async function shareRenderedVideo() {
     if (!active?.videoUrl || !apiKey.trim()) return;
     setBusy(true);
@@ -266,6 +318,8 @@ function AppInner() {
     setTopic(draft.topic);
     setNiche(draft.niche);
     setPlatform(draft.platform);
+    setLocalVideo(null);
+    setLocalProgress(0);
     setPage('create');
     setNotice('');
   }
@@ -332,6 +386,21 @@ function AppInner() {
             <Text style={styles.connectionPromptBody}>Your local outline works now. Video generation requires a private HTTPS MoneyPrinterTurbo server. Configure it in Settings →</Text>
           </Pressable> : null}
           <Action label='Render 9:16 video  →' disabled={busy || !origin || !apiKey} onPress={confirmRender} />
+          {DevicePlatform.OS === 'web' ? <View style={styles.localCard}>
+            <Text style={styles.localKicker}>NO SERVER · FREE EXPORT</Text>
+            <Text style={styles.localTitle}>Create a motion-text video</Text>
+            <Text style={styles.localDescription}>Turns your edited script into a silent 9:16 video with animated typography. No AI footage or voiceover. Keep this tab open while it renders. MP4 is used where supported; otherwise WebM.</Text>
+            {!localRendering ? <Action label='Make free silent video  →' disabled={busy} onPress={() => { void renderLocally(); }} />
+              : <>
+                <Text style={styles.localStatus}>Rendering video… {localProgress}%</Text>
+                <View style={styles.progressTrack}><View style={[styles.progressFill, { width: (localProgress + '%') as `${number}%` }]} /></View>
+                <Action label='Cancel local render' secondary onPress={cancelLocalRender} />
+              </>}
+            {localVideo && localVideo.draftId === activeId ? <>
+              <Text style={styles.localStatus}>Ready · {localVideo.durationSeconds}s · {localVideo.format.toUpperCase()} · {Math.round(localVideo.blob.size / 1024)} KB</Text>
+              <Action label={'Download ' + localVideo.format.toUpperCase() + ' video'} onPress={downloadLocalRender} />
+            </> : null}
+          </View> : null}
           <Action label='Share script & caption' secondary onPress={shareDraft} />
           {active.taskId ? <View style={styles.job}>
             <Text style={styles.jobHeading}>RENDER STATUS</Text>
@@ -425,6 +494,11 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 13, paddingBottom: 36, width: '100%', maxWidth: 860, alignSelf: 'center' },
   eyebrow: { fontSize: 10, letterSpacing: 2, color: ACCENT, fontWeight: '700', marginBottom: 12 },
   studioBanner: { backgroundColor: '#192E3C', padding: 20, borderRadius: 21, marginBottom: 26, borderWidth: 1, borderColor: '#37596A' },
+  localCard: { marginTop: 16, backgroundColor: '#1A3040', borderWidth: 1, borderColor: '#3E6472', padding: 16, borderRadius: 16 },
+  localKicker: { fontSize: 10, color: ACCENT, fontWeight: '900', letterSpacing: 1.6 },
+  localTitle: { color: INK, fontSize: 18, fontWeight: '900', marginTop: 9 },
+  localDescription: { color: '#C3D6E2', fontSize: 12, lineHeight: 19, marginTop: 8 },
+  localStatus: { color: '#D6F9C5', fontSize: 12, fontWeight: '800', marginTop: 15 },
   bannerOverline: { color: ACCENT, letterSpacing: 1.9, fontSize: 10, fontWeight: '900', marginBottom: 14 },
   bannerTitle: { color: INK, fontWeight: '900', fontSize: 25, letterSpacing: -0.8 },
   bannerCaption: { color: '#C6D3E0', fontSize: 12, lineHeight: 19, marginTop: 8 },

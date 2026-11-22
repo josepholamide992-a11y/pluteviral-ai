@@ -44,3 +44,12 @@ test('deletion is confirmed before removing a locally saved project', async ({ p
   await page.getByText('Delete project', { exact: true }).click();
   await expect(page.getByText('No drafts yet. Create your first story.')).toBeVisible();
 });
+
+test('free video mode is available without backend credentials', async ({ page }) => {
+  await page.goto('/');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('Making a simple original tip');
+  await page.getByText('Create starter outline', { exact: false }).click();
+  await expect(page.getByText('NO SERVER · FREE EXPORT')).toBeVisible();
+  await expect(page.getByText('Make free silent video', { exact: false })).toBeVisible();
+  await expect(page.getByText('Connect the video engine to render')).toBeVisible();
+});
