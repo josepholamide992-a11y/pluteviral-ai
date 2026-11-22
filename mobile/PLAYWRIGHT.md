@@ -26,3 +26,15 @@ npm run web
 - Video rendering requires a separately deployed MoneyPrinterTurbo API and media provider credentials. These tests deliberately do not submit video jobs, incur AI costs or upload content.
 - Browser automation is suitable for repeatable tests or websites you are authorised to use. It does not let this chat remotely take over a personal signed-in browser without a supported integration.
 - This was committed as a test setup, not executed on a real Android/iOS device, and no GitHub Actions jobs were enabled.
+
+
+## November 2026 browser-preview fix
+
+Native iOS and Android drafts continue to use Expo SQLite. The web preview now uses
+the browser's localStorage via a platform-specific adapter, avoiding unstable
+SQLite WebAssembly and SharedArrayBuffer configuration. Web preview API keys
+are not persisted, while native-device keys use Expo SecureStore.
+
+Expo was updated to the SDK 57 patch release, and the Playwright project test
+now checks project persistence after reloading the browser. These tests have
+not yet been run in a machine with npm registry access.

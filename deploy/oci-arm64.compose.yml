@@ -1,0 +1,22 @@
+# Oracle Always Free ARM64 evaluation.
+services:
+  video-engine:
+    image: ghcr.io/harry0703/moneyprinterturbo:latest
+    platform: linux/arm64
+    command: ["python3", "main.py"]
+    restart: unless-stopped
+    init: true
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ../config.toml:/MoneyPrinterTurbo/config.toml:ro
+      - ../storage:/MoneyPrinterTurbo/storage
+    cpus: "2.0"
+    mem_limit: 10g
+    pids_limit: 512
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      options:
+        max-size: "10m"
+        max-file: "3"

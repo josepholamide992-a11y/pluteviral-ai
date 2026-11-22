@@ -1,11 +1,11 @@
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator, Alert, Linking, Pressable, ScrollView, Share, StatusBar,
-  StyleSheet, Text, TextInput, View,
+  StyleSheet, Text, TextInput, View, Platform as DevicePlatform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
-import * as SecureStore from 'expo-secure-store';
-import DraftStorage from 'expo-sqlite/kv-store';
+import DraftStorage from './src/draftStore';
+import { getSavedSettings, saveSavedSettings } from './src/serverSettings';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
 import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
@@ -51,7 +51,7 @@ function AppInner() {
 
   useEffect(() => {
     let mounted = true;
-    Promise.all([SecureStore.getItemAsync('pluteviral_origin'), SecureStore.getItemAsync('pluteviral_api_key')])
+    getSavedSettings()
       .then(([host, key]) => { if (mounted) { setOrigin(host || ''); setApiKey(key || ''); } })
       .catch(() => { if (mounted) setNotice('Secure settings could not be restored.'); });
     return () => { mounted = false; };
@@ -112,12 +112,11 @@ function AppInner() {
   async function saveSettings() {
     try {
       const safeOrigin = normalizedServerUrl(origin);
-      await Promise.all([
-        SecureStore.setItemAsync('pluteviral_origin', safeOrigin),
-        SecureStore.setItemAsync('pluteviral_api_key', apiKey.trim()),
-      ]);
+      await saveSavedSettings(safeOrigin, apiKey.trim());
       setOrigin(safeOrigin);
-      setNotice('Secure settings saved on this device.');
+      setNotice(DevicePlatform.OS === 'web'
+        ? 'Server address saved for this browser tab. The API key stays only in memory.'
+        : 'Server address and API key securely saved on this device.');
       setPage('create');
     } catch (error) {
       Alert.alert('Settings not saved', String((error as Error).message));
@@ -318,7 +317,7 @@ function AppInner() {
           <Action label='Save secure connection' onPress={saveSettings} />
           <Action label='Test server connection' secondary disabled={busy} onPress={testConnection} />
           {serverVerified ? <Text style={styles.connectionOk}>● Server connection verified</Text> : null}
-          <Text style={styles.help}>For private testing only. A production multi-user app needs a server-side job broker; never share a master API key with customers.</Text>
+          <Text style={styles.help}>For private testing only. A production multi-user app needs a server-side job broker; never share a master API key with customers. {DevicePlatform.OS === 'web' ? 'In the web preview, the API key is never saved.' : ''}</Text>
           <Pressable onPress={() => Linking.openURL('https://github.com/harry0703/MoneyPrinterTurbo')}>
             <Text style={styles.link}>MoneyPrinterTurbo open-source engine ↗</Text>
           </Pressable>
