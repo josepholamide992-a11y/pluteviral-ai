@@ -20,7 +20,7 @@ const platforms: Platform[] = ['TikTok', 'YouTube Shorts', 'Instagram Reels'];
 const niches: Niche[] = ['Storytelling', 'Business', 'Education', 'Music'];
 
 function Pill({ text, active, onPress }: { text: string; active: boolean; onPress: () => void }) {
-  return <Pressable onPress={onPress} style={[styles.pill, active && styles.pillActive]}>
+  return <Pressable accessibilityRole='button' accessibilityState={{ selected: active }} onPress={onPress} style={[styles.pill, active && styles.pillActive]}>
     <Text style={[styles.pillText, active && styles.pillTextActive]}>{text}</Text>
   </Pressable>;
 }
@@ -28,7 +28,7 @@ function Pill({ text, active, onPress }: { text: string; active: boolean; onPres
 function Action({ label, onPress, secondary, disabled }: {
   label: string; onPress: () => void; secondary?: boolean; disabled?: boolean;
 }) {
-  return <Pressable disabled={disabled} onPress={onPress}
+  return <Pressable accessibilityRole='button' accessibilityLabel={label} accessibilityState={{ disabled: Boolean(disabled) }} disabled={disabled} onPress={onPress}
     style={[styles.action, secondary && styles.actionSecondary, disabled && styles.disabled]}>
     <Text style={[styles.actionText, secondary && styles.actionTextSecondary]}>{label}</Text>
   </Pressable>;
@@ -293,7 +293,7 @@ function AppInner() {
           <Text style={styles.bannerCaption}>Build original short-form stories with control over every word.</Text>
           <View style={styles.bannerStats}>
             <Text style={styles.bannerStat}>{drafts.length} local projects</Text>
-            <Text style={styles.bannerStat}>{origin && apiKey && serverVerified ? '● Engine verified' : '○ Engine not connected'}</Text>
+            <Text style={styles.bannerStat}>{origin && apiKey ? (serverVerified ? '● Engine verified' : '◌ Engine configured') : '○ Engine not connected'}</Text>
           </View>
         </View>
         <Text style={styles.eyebrow}>CREATOR STUDIO / 01</Text>
@@ -301,7 +301,7 @@ function AppInner() {
         <Text style={styles.sub}>Build the story. Refine the script. Render for TikTok, Shorts or Reels with your video server.</Text>
         <View style={styles.card}>
           <Text style={styles.label}>YOUR VIDEO IDEA</Text>
-          <TextInput style={styles.input} value={topic} onChangeText={changeTopic}
+          <TextInput accessibilityLabel='Video topic' style={styles.input} value={topic} onChangeText={changeTopic}
             placeholder='e.g. The untold story behind my latest song' placeholderTextColor='#67758E'
             maxLength={500} multiline />
           <Text style={styles.label}>PLATFORM</Text>
@@ -317,16 +317,16 @@ function AppInner() {
         {active ? <View style={styles.card}>
           <View style={styles.sectionTitle}><Text style={styles.sectionHeading}>Your content draft</Text><Text style={styles.dot}>● EDITABLE</Text></View>
           <Text style={styles.label}>SCRIPT</Text>
-          <TextInput multiline style={[styles.input, styles.script]} value={active.script}
+          <TextInput accessibilityLabel='Video script' multiline style={[styles.input, styles.script]} value={active.script}
             onChangeText={script => patch({ script })} textAlignVertical='top' />
           <View style={styles.split}>
             <View style={styles.half}><Action label='AI script' secondary disabled={busy} onPress={scriptFromAi} /></View>
             <View style={styles.half}><Action label='AI captions' secondary disabled={busy} onPress={captionFromAi} /></View>
           </View>
           <Text style={styles.label}>CAPTION</Text>
-          <TextInput multiline style={styles.input} value={active.caption} onChangeText={caption => patch({ caption })} />
+          <TextInput accessibilityLabel='Social media caption' multiline style={styles.input} value={active.caption} onChangeText={caption => patch({ caption })} />
           <Text style={styles.label}>HASHTAGS</Text>
-          <TextInput style={styles.input} value={active.hashtags} onChangeText={hashtags => patch({ hashtags })} />
+          <TextInput accessibilityLabel='Social media hashtags' style={styles.input} value={active.hashtags} onChangeText={hashtags => patch({ hashtags })} />
           {!origin || !apiKey ? <Pressable style={styles.connectionPrompt} onPress={() => setPage('settings')}>
             <Text style={styles.connectionPromptTitle}>Connect the video engine to render</Text>
             <Text style={styles.connectionPromptBody}>Your local outline works now. Video generation requires a private HTTPS MoneyPrinterTurbo server. Configure it in Settings →</Text>
@@ -366,11 +366,11 @@ function AppInner() {
         <Text style={styles.sub}>PluteViral uses your own MoneyPrinterTurbo render server. Without it, local templates and text sharing still work.</Text>
         <View style={styles.card}>
           <Text style={styles.label}>HTTPS SERVER ORIGIN</Text>
-          <TextInput value={origin} onChangeText={value => { setOrigin(value); setServerVerified(false); }} style={styles.input}
+          <TextInput accessibilityLabel='Video engine HTTPS address' value={origin} onChangeText={value => { setOrigin(value); setServerVerified(false); }} style={styles.input}
             autoCapitalize='none' autoCorrect={false} keyboardType='url'
             placeholder='https://video.yourdomain.com' placeholderTextColor='#67758E' />
           <Text style={styles.label}>SERVER API KEY</Text>
-          <TextInput value={apiKey} onChangeText={value => { setApiKey(value); setServerVerified(false); }} style={styles.input}
+          <TextInput accessibilityLabel='Private video engine API key' value={apiKey} onChangeText={value => { setApiKey(value); setServerVerified(false); }} style={styles.input}
             secureTextEntry autoCapitalize='none' autoCorrect={false}
             placeholder='Stored securely on your device' placeholderTextColor='#67758E' />
           <Action label='Save secure connection' onPress={saveSettings} />

@@ -11,7 +11,8 @@
     "web": "expo start --web",
     "test:ui": "playwright test",
     "test:core": "tsc --ignoreConfig --target es2022 --module commonjs --strict --lib es2022,dom --outDir .core-test-build src/content.ts src/api.ts && node --test tests/core.test.cjs",
-    "build:web": "expo export -p web"
+    "build:web": "expo export -p web",
+    "release:review": "node scripts/release-review.cjs"
   },
   "dependencies": {
     "expo": "~57.0.17",
