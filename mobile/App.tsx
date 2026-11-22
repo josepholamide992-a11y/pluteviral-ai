@@ -153,7 +153,7 @@ function AppInner() {
         'Start by explaining the problem your customers face.',
         'Show one real example of how your product helps.',
         'Finish with a clear invitation to learn more.',
-      ].join('\\n\\n');
+      ].join('\n\n');
       next.caption = 'A practical business storytelling example. Which idea will you try?';
       next.hashtags = '#SmallBusiness #ContentCreation #Shorts';
       setDrafts(prev => [next, ...prev].slice(0, 75));
@@ -181,7 +181,7 @@ function AppInner() {
       testerNotes.trim() || '(Please add what worked, what failed, and steps to reproduce.)',
       '',
       'No API keys, script contents or personal identifiers were included automatically.',
-    ].join('\\n');
+    ].join('\n');
     try {
       await shareText(report);
       setNotice('Testing report opened in the share sheet.');
