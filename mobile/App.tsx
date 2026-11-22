@@ -98,6 +98,21 @@ function AppInner() {
     setDrafts(prev => prev.map(d => d.id === activeId ? { ...d, ...changes } : d));
   }
 
+  function changeTopic(value: string) {
+    setTopic(value);
+    if (activeId) patch({ topic: value });
+  }
+
+  function changePlatform(value: Platform) {
+    setPlatform(value);
+    if (activeId) patch({ platform: value });
+  }
+
+  function changeNiche(value: Niche) {
+    setNiche(value);
+    if (activeId) patch({ niche: value });
+  }
+
   function startDraft() {
     try {
       const next = makeStarterDraft(topic, niche, platform);
@@ -251,13 +266,13 @@ function AppInner() {
         <Text style={styles.sub}>Build the story. Refine the script. Render for TikTok, Shorts or Reels with your video server.</Text>
         <View style={styles.card}>
           <Text style={styles.label}>YOUR VIDEO IDEA</Text>
-          <TextInput style={styles.input} value={topic} onChangeText={setTopic}
+          <TextInput style={styles.input} value={topic} onChangeText={changeTopic}
             placeholder='e.g. The untold story behind my latest song' placeholderTextColor='#67758E'
             maxLength={500} multiline />
           <Text style={styles.label}>PLATFORM</Text>
-          <View style={styles.wrap}>{platforms.map(p => <Pill key={p} text={p} active={platform === p} onPress={() => setPlatform(p)} />)}</View>
+          <View style={styles.wrap}>{platforms.map(p => <Pill key={p} text={p} active={platform === p} onPress={() => changePlatform(p)} />)}</View>
           <Text style={styles.label}>CONTENT STYLE</Text>
-          <View style={styles.wrap}>{niches.map(n => <Pill key={n} text={n} active={niche === n} onPress={() => setNiche(n)} />)}</View>
+          <View style={styles.wrap}>{niches.map(n => <Pill key={n} text={n} active={niche === n} onPress={() => changeNiche(n)} />)}</View>
           <Action label='Create starter outline  →' onPress={startDraft} />
           <Text style={styles.help}>Starter outlines are templates, not AI-generated results.</Text>
         </View>

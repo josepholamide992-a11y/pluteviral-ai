@@ -9,7 +9,8 @@
     "ios": "expo run:ios",
     "typecheck": "tsc --noEmit",
     "web": "expo start --web",
-    "test:ui": "playwright test"
+    "test:ui": "playwright test",
+    "test:core": "tsc --target es2022 --module commonjs --strict --lib es2022,dom --outDir .core-test-build src/content.ts src/api.ts && node --test tests/core.test.cjs"
   },
   "dependencies": {
     "expo": "~57.0.17",

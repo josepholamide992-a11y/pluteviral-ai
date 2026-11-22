@@ -6,6 +6,7 @@ export type TaskStatus = {
 };
 async function request<T>(origin: string, apiKey: string, path: string, method: 'GET' | 'POST', body?: object): Promise<T> {
   const base = normalizedServerUrl(origin);
+  if (!apiKey.trim()) throw new Error('A server API key is required.');
   const response = await fetch(base + path, {
     method,
     headers: { Accept: 'application/json',
@@ -28,12 +29,17 @@ export async function generateAiScript(origin: string, apiKey: string, topic: st
   return result.video_script;
 }
 export async function generateMetadata(origin: string, apiKey: string, draft: Draft) {
-  return request<{ title: string; caption: string; hashtags: string[] }>(
+  const result = await request<{ title: string; caption: string; hashtags: string[] }>(
     origin, apiKey, '/api/v1/social-metadata', 'POST', {
       video_subject: draft.topic, video_script: draft.script,
       platform: draft.platform === 'YouTube Shorts' ? 'youtube' : draft.platform === 'TikTok' ? 'tiktok' : 'instagram',
       language: 'en',
     });
+  if (!result || typeof result.caption !== 'string' || !Array.isArray(result.hashtags)
+      || !result.hashtags.every(tag => typeof tag === 'string')) {
+    throw new Error('The server returned invalid caption metadata.');
+  }
+  return result;
 }
 export async function checkServer(origin: string, apiKey: string) {
   const result = await request<{ tasks: TaskStatus[]; total: number }>(
@@ -44,9 +50,17 @@ export async function checkServer(origin: string, apiKey: string) {
 }
 
 export async function startVideoJob(origin: string, apiKey: string, body: object) {
-  return request<{ task_id: string }>(origin, apiKey, '/api/v1/videos', 'POST', body);
+  const result = await request<{ task_id: string }>(origin, apiKey, '/api/v1/videos', 'POST', body);
+  if (!result || !/^[a-z0-9-]{8,80}$/i.test(result.task_id || '')) {
+    throw new Error('The server returned an invalid video task ID.');
+  }
+  return result;
 }
 export async function readVideoJob(origin: string, apiKey: string, taskId: string) {
   if (!/^[a-z0-9-]{8,80}$/i.test(taskId)) throw new Error('Invalid task ID.');
-  return request<TaskStatus>(origin, apiKey, '/api/v1/tasks/' + taskId, 'GET');
+  const result = await request<TaskStatus>(origin, apiKey, '/api/v1/tasks/' + taskId, 'GET');
+  if (!result || typeof result.state !== 'number' || result.task_id !== taskId) {
+    throw new Error('The server returned an invalid task status.');
+  }
+  return result;
 }

@@ -1,0 +1,4 @@
+.core-test-build/
+.expo/
+test-results/
+playwright-report/
