@@ -71,3 +71,10 @@ This checklist is deliberately explicit: a successful **Expo Web** bundle is not
 - [ ] Verify the browser export on actual iPhone Safari and Android Chrome (capabilities differ)
 - [ ] Signed native IPA/APK builds and native-device QA remain required; JavaScript export checks do not replace these
 - [ ] MoneyPrinterTurbo AI-generated footage, speech and captions still require a legitimate, configured rendering server
+
+## Android internal tester milestone
+- [x] Native test APK signed with a non-production key
+- [x] Separate tester onboarding, sample content and privacy-aware feedback UI in v0.2.0
+- [ ] Verify v0.2.0 APK launches on emulator without fatal startup crash
+- [ ] Verify project editing and persistence on at least one real Android phone before wider distribution
+- [ ] Native offline motion video generation is NOT in the signed APK; external engine required for rendering

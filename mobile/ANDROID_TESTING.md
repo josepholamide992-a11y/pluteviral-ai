@@ -30,3 +30,11 @@ Not included in the native APK: browser-only Canvas video generation, music-file
 - When upstream template signing behaviour changes, the signature verification stage will fail and the build will not upload an unverified APK.
 - The app does not include any embedded service master API key, third-party provider key, or paid subscription access.
 - Beta testing should be voluntary, limited, and should not involve entering sensitive or copyrighted third-party data.
+
+## v0.2.0 pre-distribution QA
+- Version code 2. This supersedes the earlier 0.1.0 APK.
+- Android has an offline sample-project button and feedback reporting flow.
+- AI generation is visibly disabled until a private rendering server is configured.
+- This APK should only be sent to consenting **interface and storage testers**, not presented as a working full AI rendering service.
+- The feedback report intentionally excludes API keys, project topics and script text.
+- Physical-device installation and video-rendering service have separate acceptance gates.

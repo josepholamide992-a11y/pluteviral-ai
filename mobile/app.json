@@ -3,7 +3,7 @@
     "name": "PluteViral AI",
     "slug": "pluteviral-ai",
     "scheme": "pluteviral",
-    "version": "0.1.0",
+    "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "backgroundColor": "#0B1020",
@@ -13,7 +13,8 @@
     },
     "android": {
       "package": "com.plutevia.pluteviral",
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "versionCode": 2
     },
     "plugins": [
       "expo-secure-store"

@@ -90,3 +90,8 @@ test('free creator exports a real local video download', async ({ page }) => {
   expect(downloadPath).not.toBeNull();
   expect(fs.statSync(downloadPath!).size).toBeGreaterThan(3000);
 });
+
+test('sample project button appears only on native Android; browser remains free studio', async ({ page }) => {
+  await page.goto('/');
+  await expect(page.getByText('ANDROID INTERNAL TEST · v0.2.0')).toHaveCount(0);
+});

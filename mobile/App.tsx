@@ -58,6 +58,7 @@ function AppInner() {
   const [localVideo, setLocalVideo] = useState<(LocalVideoResult & { draftId: string }) | null>(null);
   const localAbort = useRef<AbortController | null>(null);
   const [errorMessage, setErrorMessage] = useState('');
+  const [testerNotes, setTesterNotes] = useState('');
   const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; actionLabel: string; destructive?: boolean; onConfirm: () => void } | null>(null);
   const active = drafts.find(d => d.id === activeId);
 
@@ -141,6 +142,51 @@ function AppInner() {
       setNotice('Editable starter outline created. Add original details before rendering.');
     } catch (error) {
       setErrorMessage(String((error as Error).message));
+    }
+  }
+
+  function loadDemoProject() {
+    try {
+      const next = makeStarterDraft('Three simple ways to tell your business story', 'Business', 'YouTube Shorts');
+      next.script = [
+        'People connect with stories, not just adverts.',
+        'Start by explaining the problem your customers face.',
+        'Show one real example of how your product helps.',
+        'Finish with a clear invitation to learn more.',
+      ].join('\\n\\n');
+      next.caption = 'A practical business storytelling example. Which idea will you try?';
+      next.hashtags = '#SmallBusiness #ContentCreation #Shorts';
+      setDrafts(prev => [next, ...prev].slice(0, 75));
+      setActiveId(next.id);
+      setTopic(next.topic);
+      setNiche(next.niche);
+      setPlatform(next.platform);
+      setLocalVideo(null);
+      setLocalAudio(null);
+      setNotice('Sample project created. Edit the script, save it, and find it under Projects.');
+      setPage('create');
+    } catch (error) {
+      setErrorMessage('Sample project failed: ' + String(error));
+    }
+  }
+
+  async function shareTestReport() {
+    const report = [
+      'PLUTEVIRAL AI — ANDROID TEST REPORT',
+      'App version: 0.2.0 (internal beta)',
+      'Platform: ' + DevicePlatform.OS,
+      'Projects on device: ' + drafts.length,
+      'Server connection tested: ' + (serverVerified ? 'Yes' : 'No'),
+      'Tester notes:',
+      testerNotes.trim() || '(Please add what worked, what failed, and steps to reproduce.)',
+      '',
+      'No API keys, script contents or personal identifiers were included automatically.',
+    ].join('\\n');
+    try {
+      await shareText(report);
+      setNotice('Testing report opened in the share sheet.');
+    } catch (error) {
+      setErrorMessage('Could not share report: ' + String(error));
     }
   }
 
@@ -378,7 +424,13 @@ function AppInner() {
         </View>
         <Text style={styles.eyebrow}>CREATOR STUDIO / 01</Text>
         <Text style={styles.hero}>Turn one idea into your <Text style={{ color: ACCENT }}>next video.</Text></Text>
-        <Text style={styles.sub}>Build the story. Refine the script. Render for TikTok, Shorts or Reels with your video server.</Text>
+        <Text style={styles.sub}>Plan your story, polish the script and prepare captions for TikTok, Shorts or Reels.</Text>
+        {DevicePlatform.OS === 'android' ? <View style={styles.testerPanel}>
+          <Text style={styles.testerEyebrow}>ANDROID INTERNAL TEST · v0.2.0</Text>
+          <Text style={styles.testerHeading}>Explore the creator studio</Text>
+          <Text style={styles.testerBody}>This build supports writing, editing, saving projects and sharing captions. AI video rendering needs a separately configured private server. The free browser-only music renderer is not available in this APK.</Text>
+          <Action label='Create sample project' secondary onPress={loadDemoProject} />
+        </View> : null}
         <View style={styles.card}>
           <Text style={styles.label}>YOUR VIDEO IDEA</Text>
           <TextInput accessibilityLabel='Video topic' style={styles.input} value={topic} onChangeText={changeTopic}
@@ -400,8 +452,8 @@ function AppInner() {
           <TextInput accessibilityLabel='Video script' multiline style={[styles.input, styles.script]} value={active.script}
             onChangeText={script => patch({ script })} textAlignVertical='top' />
           <View style={styles.split}>
-            <View style={styles.half}><Action label='AI script' secondary disabled={busy} onPress={scriptFromAi} /></View>
-            <View style={styles.half}><Action label='AI captions' secondary disabled={busy} onPress={captionFromAi} /></View>
+            <View style={styles.half}><Action label='AI script' secondary disabled={busy || !origin || !apiKey} onPress={scriptFromAi} /></View>
+            <View style={styles.half}><Action label='AI captions' secondary disabled={busy || !origin || !apiKey} onPress={captionFromAi} /></View>
           </View>
           <Text style={styles.label}>CAPTION</Text>
           <TextInput accessibilityLabel='Social media caption' multiline style={styles.input} value={active.caption} onChangeText={caption => patch({ caption })} />
@@ -480,6 +532,16 @@ function AppInner() {
             <Text style={styles.link}>MoneyPrinterTurbo open-source engine ↗</Text>
           </Pressable>
         </View>
+        {DevicePlatform.OS === 'android' ? <View style={styles.card}>
+          <Text style={styles.label}>INTERNAL TESTER CHECKLIST</Text>
+          <Text style={styles.help}>Try a sample project, edit its script, switch platform, close and reopen the app, confirm the project remains under Projects, then share the script.</Text>
+          <Text style={styles.help}>Rendering and automated posting are unavailable without a live server. Please do not enter someone else's API key or private data.</Text>
+          <Text style={styles.label}>YOUR FEEDBACK</Text>
+          <TextInput accessibilityLabel='Tester feedback notes' value={testerNotes} onChangeText={setTesterNotes} multiline textAlignVertical='top'
+            style={[styles.input, { minHeight: 100 }]} placeholder='What worked? What failed? Steps to reproduce…' placeholderTextColor='#67758E' />
+          <Action label='Share tester feedback' onPress={() => { void shareTestReport(); }} />
+          <Text style={styles.help}>Only the notes you type, app version and basic test state are shared. API keys and project content are excluded.</Text>
+        </View> : null}
       </>}
       {busy && <View style={styles.busy}><ActivityIndicator color={ACCENT}/><Text style={styles.muted}>Processing your request…</Text></View>}
       {notice ? <View style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View> : null}
@@ -487,7 +549,7 @@ function AppInner() {
         <Text style={styles.errorText}>{errorMessage}</Text>
         <Text style={styles.errorDismiss}>Dismiss ✕</Text>
       </Pressable> : null}
-      <Text style={styles.footer}>PLUTEVIA LIMITED · PLUTEVIRAL AI · BUILD 0.1</Text>
+      <Text style={styles.footer}>PLUTEVIA LIMITED · PLUTEVIRAL AI · TEST BUILD 0.2.0</Text>
     </ScrollView>
     <Modal visible={Boolean(confirmDialog)} transparent animationType='fade' onRequestClose={() => setConfirmDialog(null)}>
       <View style={styles.modalBackdrop}>
@@ -524,6 +586,10 @@ const styles = StyleSheet.create({
   content: { padding: 20, paddingTop: 13, paddingBottom: 36, width: '100%', maxWidth: 860, alignSelf: 'center' },
   eyebrow: { fontSize: 10, letterSpacing: 2, color: ACCENT, fontWeight: '700', marginBottom: 12 },
   studioBanner: { backgroundColor: '#192E3C', padding: 20, borderRadius: 21, marginBottom: 26, borderWidth: 1, borderColor: '#37596A' },
+  testerPanel: { backgroundColor: '#182E36', borderWidth: 1, borderColor: '#46715B', borderRadius: 18, padding: 16, marginBottom: 20 },
+  testerEyebrow: { fontSize: 10, fontWeight: '900', color: ACCENT, letterSpacing: 1.5 },
+  testerHeading: { color: INK, fontSize: 19, fontWeight: '900', marginTop: 9 },
+  testerBody: { color: '#C8D8DD', fontSize: 12, lineHeight: 19, marginTop: 9 },
   localCard: { marginTop: 16, backgroundColor: '#1A3040', borderWidth: 1, borderColor: '#3E6472', padding: 16, borderRadius: 16 },
   localKicker: { fontSize: 10, color: ACCENT, fontWeight: '900', letterSpacing: 1.6 },
   localTitle: { color: INK, fontSize: 18, fontWeight: '900', marginTop: 9 },
