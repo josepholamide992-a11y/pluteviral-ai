@@ -20,6 +20,10 @@
     ],
     "extra": {
       "business": "Plutevia Limited"
+    },
+    "web": {
+      "output": "single",
+      "name": "PluteViral AI"
     }
   }
 }
