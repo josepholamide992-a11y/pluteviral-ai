@@ -92,3 +92,53 @@ jobs:
           if-no-files-found: error
           compression-level: 0
           retention-days: 30
+
+  smoke-android:
+    name: Install and launch APK on Android emulator
+    needs: build-test-apk
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - name: Enable KVM acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=\"kvm\""' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Download the APK from this workflow
+        uses: actions/download-artifact@v4
+        with:
+          name: PluteViral-AI-Android-Tester-APK
+          path: tester-apk
+
+      - name: Install and verify app launches
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          arch: x86_64
+          target: google_apis
+          profile: pixel_6
+          cores: 2
+          ram-size: 2048M
+          heap-size: 256M
+          disable-animations: true
+          script: |
+            set -e
+            adb install -r tester-apk/PluteViral-AI-Android-TEST.apk
+            adb shell am force-stop com.plutevia.pluteviral || true
+            adb shell am start -W -n com.plutevia.pluteviral/.MainActivity
+            sleep 12
+            adb shell pidof com.plutevia.pluteviral
+            adb shell dumpsys activity activities | grep -E 'ResumedActivity|topResumedActivity' | grep 'com.plutevia.pluteviral'
+            adb shell screencap -p /sdcard/pluteviral-launch.png
+            adb pull /sdcard/pluteviral-launch.png pluteviral-launch.png
+            echo "PluteViral startup smoke test passed"
+
+      - name: Upload emulator launch evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: PluteViral-Android-Launch-Screenshot
+          path: pluteviral-launch.png
+          if-no-files-found: ignore
+          retention-days: 14
