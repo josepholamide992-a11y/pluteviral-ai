@@ -30,3 +30,11 @@ When using the browser preview on iPhone, Android or desktop, a separate button 
 It creates 540 × 960 portrait motion typography using the current topic, edited script and caption. The browser selects MP4 if its recorder supports MP4, otherwise exports WebM. A separate Download button saves the resulting file. The renderer enforces a 1,500-character maximum, limits the storyboard to nine body scenes, and displays progress. Keep the browser tab active throughout the recording. No audio, face footage, automatic captions over stock clips, TikTok posting, or AI imagery are implied.
 
 The native iOS/Android source still requires a **connected video engine** for MP4 rendering. Browser-based exports are available from the deployed web preview and can be tested on supported mobile browsers. This fallback is not a substitute for signed native app builds or the complete MoneyPrinterTurbo service.
+
+## Installable browser preview
+
+The protected Expo Web app also includes a web-app manifest and SVG application icon. On a supported iPhone browser, open the protected Vercel preview, choose Share → Add to Home Screen. On Android Chrome, use the browser menu's **Install app** or **Add to Home screen** option when offered.
+
+This adds the **web studio** to the Home Screen; it is not a signed iOS IPA or Android APK. It still requires authentication to access its protected hosted version. Local video output depends on browser MediaRecorder capabilities, so a supported browser may export MP4 or WebM.
+
+The app does not install an offline service worker and does not claim guaranteed offline access. An active tab is required during browser video recording.
