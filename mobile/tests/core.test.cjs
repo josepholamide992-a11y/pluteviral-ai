@@ -83,3 +83,12 @@ test('malformed video job responses are rejected', async () => {
   });
   await assert.rejects(() => readVideoJob('https://video.example.com', 'secret', 'abc-12345'), /invalid task status/);
 });
+
+test('restored project schema rejects invalid or tampered drafts', () => {
+  const { isSavedDraft } = require('../.core-test-build/content.js');
+  const valid = makeStarterDraft('Valid original content', 'Music', 'TikTok');
+  assert.equal(isSavedDraft(valid), true);
+  assert.equal(isSavedDraft({ ...valid, platform: 'Unknown' }), false);
+  assert.equal(isSavedDraft({ ...valid, taskId: '../admin' }), false);
+  assert.equal(isSavedDraft({ ...valid, script: 'x'.repeat(101_000) }), false);
+});

@@ -11,6 +11,21 @@ const hooks: Record<Niche, (subject: string) => string> = {
   Education: (subject) => 'Here is the simplest way to understand ' + subject + ' in under a minute.',
   Music: (subject) => 'There is a story behind ' + subject + ' that deserves to be heard.',
 };
+export function isSavedDraft(value: unknown): value is Draft {
+  if (!value || typeof value !== 'object') return false;
+  const d = value as Record<string, unknown>;
+  return typeof d.id === 'string' && d.id.length > 0 && d.id.length < 100
+    && typeof d.topic === 'string' && d.topic.length <= 500
+    && typeof d.script === 'string' && d.script.length <= 100_000
+    && typeof d.caption === 'string' && d.caption.length <= 20_000
+    && typeof d.hashtags === 'string' && d.hashtags.length <= 5_000
+    && typeof d.createdAt === 'number' && Number.isFinite(d.createdAt)
+    && ['TikTok', 'YouTube Shorts', 'Instagram Reels'].includes(String(d.platform))
+    && ['Storytelling', 'Business', 'Education', 'Music'].includes(String(d.niche))
+    && (d.status === undefined || typeof d.status === 'string')
+    && (d.taskId === undefined || (typeof d.taskId === 'string' && /^[a-z0-9-]{8,80}$/i.test(d.taskId)));
+}
+
 export function makeStarterDraft(topic: string, niche: Niche, platform: Platform): Draft {
   const subject = topic.trim().replace(/\s+/g, ' ');
   if (!subject || subject.length > 500) throw new Error('Enter a topic under 500 characters.');

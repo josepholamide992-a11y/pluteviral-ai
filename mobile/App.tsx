@@ -1,14 +1,15 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator, Linking, Modal, Pressable, ScrollView, Share, StatusBar,
+  ActivityIndicator, Linking, Modal, Pressable, ScrollView, StatusBar,
   StyleSheet, Text, TextInput, View, Platform as DevicePlatform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DraftStorage from './src/draftStore';
 import { getSavedSettings, saveSavedSettings } from './src/serverSettings';
 import { exportVideo } from './src/videoExport';
+import { shareText } from './src/textShare';
 import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
-import { makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
+import { isSavedDraft, makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
 
 const INK = '#EEF2FF';
 const MUTED = '#9BA8C4';
@@ -40,6 +41,7 @@ function AppInner() {
   const [platform, setPlatform] = useState<Platform>('TikTok');
   const [drafts, setDrafts] = useState<Draft[]>([]);
   const [draftsRestored, setDraftsRestored] = useState(false);
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [origin, setOrigin] = useState('');
   const [apiKey, setApiKey] = useState('');
@@ -65,11 +67,7 @@ function AppInner() {
         if (!mounted || !raw) return;
         const parsed: unknown = JSON.parse(raw);
         if (!Array.isArray(parsed)) return;
-        const verified = parsed.filter((d): d is Draft =>
-          d && typeof d === 'object' && typeof d.id === 'string'
-          && typeof d.topic === 'string' && typeof d.script === 'string'
-          && typeof d.caption === 'string' && typeof d.hashtags === 'string'
-        ).slice(0, 75);
+        const verified = parsed.filter(isSavedDraft).slice(0, 75);
         setDrafts(verified);
       })
       .catch(() => { if (mounted) setNotice('Could not restore saved projects.'); })
@@ -79,8 +77,11 @@ function AppInner() {
 
   useEffect(() => {
     if (!draftsRestored) return;
-    DraftStorage.setItem('pluteviral_drafts_v1', JSON.stringify(drafts.slice(0, 75)))
-      .catch(() => setNotice('Local saving failed. Export important scripts.'));
+    const serialized = JSON.stringify(drafts.slice(0, 75));
+    saveQueue.current = saveQueue.current
+      .catch(() => undefined)
+      .then(() => DraftStorage.setItem('pluteviral_drafts_v1', serialized))
+      .catch(() => { setNotice('Local saving failed. Export important scripts.'); });
   }, [drafts, draftsRestored]);
 
   function deleteDraft(id: string) {
@@ -214,7 +215,7 @@ function AppInner() {
   async function shareDraft() {
     if (!active) return;
     try {
-      await Share.share({ message: [active.topic, active.script, active.caption, active.hashtags].join('\n\n') });
+      await shareText([active.topic, active.script, active.caption, active.hashtags].join('\n\n'));
     } catch (error) { setErrorMessage('Share unavailable: ' + String(error)); }
   }
 
@@ -277,7 +278,7 @@ function AppInner() {
         <Text style={styles.brand}>PLUTEVIRAL <Text style={{ color: ACCENT }}>AI</Text></Text>
         <Text style={styles.brandTag}>YOUR CONTENT. MULTIPLIED.</Text>
       </View>
-      <View style={styles.beta}><Text style={styles.betaText}>MVP</Text></View>
+      <View style={styles.beta}><Text style={styles.betaText}>PRIVATE BETA</Text></View>
     </View>
     <View style={styles.nav}>
       <Pill text='Create' active={page === 'create'} onPress={() => setPage('create')} />
@@ -286,6 +287,15 @@ function AppInner() {
     </View>
     <ScrollView style={styles.scroll} contentContainerStyle={styles.content} keyboardShouldPersistTaps='handled'>
       {page === 'create' ? <>
+        <View style={styles.studioBanner}>
+          <Text style={styles.bannerOverline}>PLUTEVIA CREATOR SUITE</Text>
+          <Text style={styles.bannerTitle}>Your studio, anywhere.</Text>
+          <Text style={styles.bannerCaption}>Build original short-form stories with control over every word.</Text>
+          <View style={styles.bannerStats}>
+            <Text style={styles.bannerStat}>{drafts.length} local projects</Text>
+            <Text style={styles.bannerStat}>{origin && apiKey && serverVerified ? '● Engine verified' : '○ Engine not connected'}</Text>
+          </View>
+        </View>
         <Text style={styles.eyebrow}>CREATOR STUDIO / 01</Text>
         <Text style={styles.hero}>Turn one idea into your <Text style={{ color: ACCENT }}>next video.</Text></Text>
         <Text style={styles.sub}>Build the story. Refine the script. Render for TikTok, Shorts or Reels with your video server.</Text>
@@ -403,17 +413,23 @@ export default function App() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: '#0A1020' },
-  header: { height: 76, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 10 },
+  header: { height: 76, flexDirection: 'row', alignItems: 'center', paddingHorizontal: 20, gap: 10, width: '100%', maxWidth: 860, alignSelf: 'center' },
   mark: { width: 38, height: 38, backgroundColor: ACCENT, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   markText: { fontWeight: '900', fontSize: 23, color: '#0A1020' },
   brand: { color: INK, fontWeight: '900', letterSpacing: 1.5, fontSize: 15 },
   brandTag: { color: MUTED, fontSize: 8, letterSpacing: 2.1, marginTop: 3 },
   beta: { marginLeft: 'auto', paddingHorizontal: 9, paddingVertical: 5, borderRadius: 8, backgroundColor: '#263049' },
   betaText: { color: ACCENT, fontSize: 10, fontWeight: '800' },
-  nav: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, paddingBottom: 14 },
+  nav: { flexDirection: 'row', paddingHorizontal: 20, gap: 8, paddingBottom: 14, width: '100%', maxWidth: 860, alignSelf: 'center' },
   scroll: { flex: 1 },
-  content: { padding: 20, paddingTop: 13, paddingBottom: 36 },
+  content: { padding: 20, paddingTop: 13, paddingBottom: 36, width: '100%', maxWidth: 860, alignSelf: 'center' },
   eyebrow: { fontSize: 10, letterSpacing: 2, color: ACCENT, fontWeight: '700', marginBottom: 12 },
+  studioBanner: { backgroundColor: '#192E3C', padding: 20, borderRadius: 21, marginBottom: 26, borderWidth: 1, borderColor: '#37596A' },
+  bannerOverline: { color: ACCENT, letterSpacing: 1.9, fontSize: 10, fontWeight: '900', marginBottom: 14 },
+  bannerTitle: { color: INK, fontWeight: '900', fontSize: 25, letterSpacing: -0.8 },
+  bannerCaption: { color: '#C6D3E0', fontSize: 12, lineHeight: 19, marginTop: 8 },
+  bannerStats: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 18 },
+  bannerStat: { backgroundColor: '#223E4C', color: '#D8E6EF', paddingHorizontal: 11, paddingVertical: 8, overflow: 'hidden', borderRadius: 12, fontSize: 11, fontWeight: '700' },
   hero: { color: INK, fontWeight: '900', fontSize: 32, letterSpacing: -1.25, lineHeight: 39, marginBottom: 12 },
   sub: { color: MUTED, fontSize: 14, lineHeight: 22, marginBottom: 22 },
   card: { backgroundColor: SURFACE, padding: 17, borderRadius: 22, marginBottom: 18, borderWidth: 1, borderColor: '#27324B' },
