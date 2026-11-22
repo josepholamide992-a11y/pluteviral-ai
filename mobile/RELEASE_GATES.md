@@ -62,3 +62,12 @@ This checklist is deliberately explicit: a successful **Expo Web** bundle is not
 - [ ] Obtain user approval before any public release or paid service activation
 
 **Current external blockers:** no Oracle/alternative render VM, no provider API keys configured, Apple account verification incomplete, no connected EAS build account. No completed AI video or signed native build can truthfully be claimed.
+
+## November 22, 2026: Free browser creation
+
+- [x] Browser-only storyboard renderer uses Canvas/MediaRecorder to produce silent motion-text videos without a video server on supported browsers
+- [x] Browser download supports MP4 when the browser encoder supports it, otherwise WebM
+- [x] Standalone web manifest and app icon hosted with the protected browser preview
+- [ ] Verify the browser export on actual iPhone Safari and Android Chrome (capabilities differ)
+- [ ] Signed native IPA/APK builds and native-device QA remain required; JavaScript export checks do not replace these
+- [ ] MoneyPrinterTurbo AI-generated footage, speech and captions still require a legitimate, configured rendering server

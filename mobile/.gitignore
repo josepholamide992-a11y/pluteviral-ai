@@ -2,3 +2,4 @@
 .expo/
 test-results/
 playwright-report/
+.native-bundle/
