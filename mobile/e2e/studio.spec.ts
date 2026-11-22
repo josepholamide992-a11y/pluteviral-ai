@@ -1,26 +1,46 @@
 import { test, expect } from '@playwright/test';
 
-test('create an editable video outline on a mobile-sized screen', async ({ page }) => {
+test('create, edit and restore a project', async ({ page }) => {
   await page.goto('/');
   await expect(page.getByText('YOUR CONTENT. MULTIPLIED.')).toBeVisible();
-  await page.getByPlaceholder('e.g. The untold story behind my latest song')
-    .fill('Three useful filming tips for small business owners');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('Three filming tips');
   await page.getByText('Create starter outline', { exact: false }).click();
   await expect(page.getByText('Your content draft')).toBeVisible();
-  await expect(page.getByText('Render 9:16 video', { exact: false })).toBeVisible();
-});
-
-test('projects survive a browser refresh', async ({ page }) => {
-  await page.goto('/');
-  await page.getByPlaceholder('e.g. The untold story behind my latest song')
-    .fill('Explaining sustainable product packaging');
-  await page.getByText('Create starter outline', { exact: false }).click();
-
+  await expect(page.getByText('Connect the video engine to render')).toBeVisible();
   await page.getByText('Projects', { exact: false }).first().click();
-  await expect(page.getByText('Explaining sustainable product packaging')).toBeVisible();
+  await expect(page.getByText('Three filming tips')).toBeVisible();
   await page.reload();
   await page.getByText('Projects', { exact: false }).first().click();
-  await expect(page.getByText('Explaining sustainable product packaging')).toBeVisible();
+  await expect(page.getByText('Three filming tips')).toBeVisible();
   await page.getByText('Open project', { exact: false }).click();
   await expect(page.getByText('Your content draft')).toBeVisible();
+});
+
+test('render confirmation is cancellable without calling an external API', async ({ page }) => {
+  await page.goto('/');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('Brand origin story');
+  await page.getByText('Create starter outline', { exact: false }).click();
+  await page.getByText('Settings', { exact: true }).click();
+  await page.getByPlaceholder('https://video.yourdomain.com').fill('https://video.example.com');
+  await page.getByPlaceholder('Stored securely on your device').fill('local-test-key-only');
+  await page.getByText('Save secure connection').click();
+  await page.getByText('Render 9:16 video', { exact: false }).click();
+  await expect(page.getByText('Start rendering?')).toBeVisible();
+  await expect(page.getByText('This sends your script', { exact: false })).toBeVisible();
+  await page.getByText('Cancel', { exact: true }).click();
+  await expect(page.getByText('Start rendering?')).toBeHidden();
+});
+
+test('deletion is confirmed before removing a locally saved project', async ({ page }) => {
+  await page.goto('/');
+  await page.getByPlaceholder('e.g. The untold story behind my latest song').fill('Deletion safety test');
+  await page.getByText('Create starter outline', { exact: false }).click();
+  await page.getByText('Projects', { exact: false }).first().click();
+  await page.getByText('Delete', { exact: true }).click();
+  await expect(page.getByText('Delete this project?')).toBeVisible();
+  await page.getByText('Cancel', { exact: true }).click();
+  await expect(page.getByText('Deletion safety test')).toBeVisible();
+  await page.getByText('Delete', { exact: true }).click();
+  await page.getByText('Delete project', { exact: true }).click();
+  await expect(page.getByText('No drafts yet. Create your first story.')).toBeVisible();
 });

@@ -1,13 +1,12 @@
 import React, { useEffect, useState } from 'react';
 import {
-  ActivityIndicator, Alert, Linking, Pressable, ScrollView, Share, StatusBar,
+  ActivityIndicator, Linking, Modal, Pressable, ScrollView, Share, StatusBar,
   StyleSheet, Text, TextInput, View, Platform as DevicePlatform,
 } from 'react-native';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import DraftStorage from './src/draftStore';
 import { getSavedSettings, saveSavedSettings } from './src/serverSettings';
-import * as FileSystem from 'expo-file-system/legacy';
-import * as Sharing from 'expo-sharing';
+import { exportVideo } from './src/videoExport';
 import { checkServer, generateAiScript, generateMetadata, readVideoJob, startVideoJob } from './src/api';
 import { makeStarterDraft, makeVideoPayload, normalizedServerUrl, type Draft, type Niche, type Platform } from './src/content';
 
@@ -47,6 +46,8 @@ function AppInner() {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState('');
   const [serverVerified, setServerVerified] = useState(false);
+  const [errorMessage, setErrorMessage] = useState('');
+  const [confirmDialog, setConfirmDialog] = useState<{ title: string; message: string; actionLabel: string; destructive?: boolean; onConfirm: () => void } | null>(null);
   const active = drafts.find(d => d.id === activeId);
 
   useEffect(() => {
@@ -83,14 +84,17 @@ function AppInner() {
   }, [drafts, draftsRestored]);
 
   function deleteDraft(id: string) {
-    Alert.alert('Delete this project?', 'This removes its script and render history from this device.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Delete', style: 'destructive', onPress: () => {
+    setConfirmDialog({
+      title: 'Delete this project?',
+      message: 'Your script, captions and rendering history for this project will be removed from this device.',
+      actionLabel: 'Delete project',
+      destructive: true,
+      onConfirm: () => {
         setDrafts(prev => prev.filter(d => d.id !== id));
         if (activeId === id) setActiveId(null);
         setNotice('Project deleted from this device.');
-      } },
-    ]);
+      },
+    });
   }
 
   function patch(changes: Partial<Draft>) {
@@ -120,7 +124,7 @@ function AppInner() {
       setActiveId(next.id);
       setNotice('Editable starter outline created. Add original details before rendering.');
     } catch (error) {
-      Alert.alert('Check your topic', String((error as Error).message));
+      setErrorMessage(String((error as Error).message));
     }
   }
 
@@ -134,20 +138,21 @@ function AppInner() {
         : 'Server address and API key securely saved on this device.');
       setPage('create');
     } catch (error) {
-      Alert.alert('Settings not saved', String((error as Error).message));
+      setErrorMessage('Settings not saved: ' + String((error as Error).message));
     }
   }
 
   async function connected<T>(operation: () => Promise<T>, completed: (value: T) => void) {
     setBusy(true);
     setNotice('');
+    setErrorMessage('');
     try {
       normalizedServerUrl(origin);
       if (!apiKey.trim()) throw new Error('Enter the configured server API key under Settings before requesting AI or video rendering.');
       const result = await operation();
       completed(result);
     } catch (error) {
-      Alert.alert('Server request failed', String((error as Error).message));
+      setErrorMessage('Server request failed: ' + String((error as Error).message));
     } finally { setBusy(false); }
   }
 
@@ -160,14 +165,12 @@ function AppInner() {
 
   function confirmRender() {
     if (!active) return;
-    Alert.alert(
-      'Start video rendering?',
-      'MoneyPrinterTurbo may consume paid AI, media, or hosting resources. Proceed only if your provider budget permits it.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Render video', onPress: () => { void renderVideo(); } },
-      ],
-    );
+    setConfirmDialog({
+      title: 'Start rendering?',
+      message: 'This sends your script to your configured video server. Rendering may consume paid provider credits. Check your account budget first.',
+      actionLabel: 'Start render',
+      onConfirm: () => { void renderVideo(); },
+    });
   }
 
   async function scriptFromAi() {
@@ -188,7 +191,7 @@ function AppInner() {
 
   async function renderVideo() {
     if (!active) return;
-    if (!active.script.trim()) return Alert.alert('Script required', 'Write a script first.');
+    if (!active.script.trim()) { setErrorMessage('Write a script before rendering.'); return; }
     await connected(() => startVideoJob(origin, apiKey, makeVideoPayload(active)), result => {
       patch({ taskId: result.task_id, status: 'Rendering', progress: 0, videoUrl: undefined });
       setNotice('Video job submitted. Use Refresh status to check progress.');
@@ -212,28 +215,50 @@ function AppInner() {
     if (!active) return;
     try {
       await Share.share({ message: [active.topic, active.script, active.caption, active.hashtags].join('\n\n') });
-    } catch (error) { Alert.alert('Share unavailable', String(error)); }
+    } catch (error) { setErrorMessage('Share unavailable: ' + String(error)); }
   }
 
   async function shareRenderedVideo() {
-    if (!active?.videoUrl) return;
+    if (!active?.videoUrl || !apiKey.trim()) return;
     setBusy(true);
+    setErrorMessage('');
     try {
-      const host = normalizedServerUrl(origin);
-      const resolved = new URL(active.videoUrl, host);
-      if (resolved.protocol !== 'https:' || resolved.origin !== new URL(host).origin) {
-        throw new Error('For safety, video downloads must use your configured HTTPS server.');
-      }
-      const local = (FileSystem.cacheDirectory || FileSystem.documentDirectory) + 'pluteviral-' + active.id.replace(/[^a-z0-9-]/gi, '') + '.mp4';
-      const headers: Record<string, string> = apiKey ? { 'x-api-key': apiKey } : {};
-      const result = await FileSystem.downloadAsync(resolved.toString(), local, { headers });
-      if (result.status !== 200) throw new Error('Download failed with HTTP ' + result.status);
-      if (!(await Sharing.isAvailableAsync())) throw new Error('File sharing is unavailable on this device.');
-      await Sharing.shareAsync(result.uri, { mimeType: 'video/mp4', dialogTitle: 'Share PluteViral video' });
+      await exportVideo(origin, active.videoUrl, apiKey, active.id);
+      setNotice(DevicePlatform.OS === 'web' ? 'Video download started.' : 'Video opened in your device share sheet.');
     } catch (error) {
-      Alert.alert('Could not export video', String((error as Error).message));
-    } finally { setBusy(false); }
+      setErrorMessage('Could not export video: ' + String((error as Error).message));
+    } finally {
+      setBusy(false);
+    }
   }
+
+  useEffect(() => {
+    if (!active?.taskId || active.status !== 'Rendering' || !origin || !apiKey) return;
+    let cancelled = false;
+    let inFlight = false;
+    const taskId = active.taskId;
+    async function poll() {
+      if (inFlight) return;
+      inFlight = true;
+      try {
+        const data = await readVideoJob(origin, apiKey, taskId);
+        if (cancelled) return;
+        const status = data.state === 1 ? 'Completed' : data.state === -1 ? 'Failed' : 'Rendering';
+        const videoUrl = data.videos?.[0] || data.combined_videos?.[0];
+        setDrafts(prev => prev.map(d => d.taskId === taskId ? {
+          ...d, status, progress: data.progress ?? d.progress,
+          ...(status === 'Completed' && videoUrl ? { videoUrl } : {}),
+        } : d));
+        if (status === 'Completed') setNotice('Your video is ready to download.');
+        if (status === 'Failed') setErrorMessage('Video rendering failed: ' + (data.error || data.failed_stage || 'Unknown error'));
+      } catch {
+        // Keep the current job and allow a manual retry; transient network failures
+        // must not mark a video as failed.
+      } finally { inFlight = false; }
+    }
+    const timer = setInterval(() => { void poll(); }, 12000);
+    return () => { cancelled = true; clearInterval(timer); };
+  }, [active?.taskId, active?.status, origin, apiKey]);
 
   function openDraft(draft: Draft) {
     setActiveId(draft.id);
@@ -274,6 +299,9 @@ function AppInner() {
           <Text style={styles.label}>CONTENT STYLE</Text>
           <View style={styles.wrap}>{niches.map(n => <Pill key={n} text={n} active={niche === n} onPress={() => changeNiche(n)} />)}</View>
           <Action label='Create starter outline  →' onPress={startDraft} />
+          <View style={styles.stepRow}>
+            <Text style={styles.stepText}>01 · Plan</Text><Text style={styles.stepText}>02 · Write</Text><Text style={styles.stepText}>03 · Render</Text>
+          </View>
           <Text style={styles.help}>Starter outlines are templates, not AI-generated results.</Text>
         </View>
         {active ? <View style={styles.card}>
@@ -289,11 +317,17 @@ function AppInner() {
           <TextInput multiline style={styles.input} value={active.caption} onChangeText={caption => patch({ caption })} />
           <Text style={styles.label}>HASHTAGS</Text>
           <TextInput style={styles.input} value={active.hashtags} onChangeText={hashtags => patch({ hashtags })} />
-          <Action label='Render 9:16 video  →' disabled={busy} onPress={confirmRender} />
+          {!origin || !apiKey ? <Pressable style={styles.connectionPrompt} onPress={() => setPage('settings')}>
+            <Text style={styles.connectionPromptTitle}>Connect the video engine to render</Text>
+            <Text style={styles.connectionPromptBody}>Your local outline works now. Video generation requires a private HTTPS MoneyPrinterTurbo server. Configure it in Settings →</Text>
+          </Pressable> : null}
+          <Action label='Render 9:16 video  →' disabled={busy || !origin || !apiKey} onPress={confirmRender} />
           <Action label='Share script & caption' secondary onPress={shareDraft} />
           {active.taskId ? <View style={styles.job}>
             <Text style={styles.jobHeading}>RENDER STATUS</Text>
             <Text style={styles.jobTitle}>{active.status || 'Rendering'} · {active.progress || 0}%</Text>
+            <View style={styles.progressTrack}><View style={[styles.progressFill, { width: (Math.max(0, Math.min(100, active.progress || 0)) + '%') as `${number}%` }]} /></View>
+            <Text style={styles.help}>Status refreshes automatically while this project is open.</Text>
             <Text style={styles.jobId}>Job: {active.taskId}</Text>
             <Action label='Refresh status' secondary disabled={busy} onPress={refreshStatus} />
             {active.videoUrl ? <Action label='Download & share MP4' onPress={shareRenderedVideo} disabled={busy} /> : null}
@@ -340,8 +374,26 @@ function AppInner() {
       </>}
       {busy && <View style={styles.busy}><ActivityIndicator color={ACCENT}/><Text style={styles.muted}>Processing your request…</Text></View>}
       {notice ? <View style={styles.notice}><Text style={styles.noticeText}>{notice}</Text></View> : null}
+      {errorMessage ? <Pressable accessibilityRole='button' accessibilityLabel='Dismiss error' onPress={() => setErrorMessage('')} style={styles.errorBox}>
+        <Text style={styles.errorText}>{errorMessage}</Text>
+        <Text style={styles.errorDismiss}>Dismiss ✕</Text>
+      </Pressable> : null}
       <Text style={styles.footer}>PLUTEVIA LIMITED · PLUTEVIRAL AI · BUILD 0.1</Text>
     </ScrollView>
+    <Modal visible={Boolean(confirmDialog)} transparent animationType='fade' onRequestClose={() => setConfirmDialog(null)}>
+      <View style={styles.modalBackdrop}>
+        <View style={styles.modalCard}>
+          <Text style={styles.modalTitle}>{confirmDialog?.title}</Text>
+          <Text style={styles.modalBody}>{confirmDialog?.message}</Text>
+          <Action label={confirmDialog?.actionLabel || 'Confirm'} onPress={() => {
+            const callback = confirmDialog?.onConfirm;
+            setConfirmDialog(null);
+            callback?.();
+          }} />
+          <Action secondary label='Cancel' onPress={() => setConfirmDialog(null)} />
+        </View>
+      </View>
+    </Modal>
   </SafeAreaView>;
 }
 
@@ -400,4 +452,18 @@ const styles = StyleSheet.create({
   notice: { padding: 13, backgroundColor: '#253D27', borderRadius: 13, marginBottom: 17 },
   noticeText: { color: '#D9FFD2', fontSize: 12, lineHeight: 18 },
   footer: { color: '#61718D', fontWeight: '700', fontSize: 9, textAlign: 'center', letterSpacing: 1, marginTop: 16 },
+  stepRow: { flexDirection: 'row', justifyContent: 'space-between', marginTop: 14, paddingHorizontal: 3 },
+  stepText: { color: '#7B9DAD', fontSize: 10, fontWeight: '800', letterSpacing: 0.2 },
+  connectionPrompt: { backgroundColor: '#203044', borderRadius: 14, borderWidth: 1, borderColor: '#4C6385', padding: 14, marginTop: 16 },
+  connectionPromptTitle: { color: ACCENT, fontSize: 13, fontWeight: '900', marginBottom: 6 },
+  connectionPromptBody: { color: '#CBD5E1', fontSize: 11, lineHeight: 18 },
+  progressTrack: { height: 6, backgroundColor: '#34445E', borderRadius: 100, overflow: 'hidden', marginTop: 12 },
+  progressFill: { height: 6, backgroundColor: ACCENT, borderRadius: 100 },
+  errorBox: { backgroundColor: '#3F1E29', borderColor: '#9F445B', borderWidth: 1, borderRadius: 13, padding: 13, marginBottom: 17 },
+  errorText: { color: '#FFE4EA', fontSize: 12, lineHeight: 18 },
+  errorDismiss: { color: '#FDA4AF', textAlign: 'right', fontSize: 11, fontWeight: '800', marginTop: 10 },
+  modalBackdrop: { flex: 1, justifyContent: 'center', padding: 22, backgroundColor: 'rgba(0,0,0,0.76)' },
+  modalCard: { backgroundColor: '#18243C', borderRadius: 23, padding: 22, borderWidth: 1, borderColor: '#475569' },
+  modalTitle: { color: INK, fontSize: 23, fontWeight: '900' },
+  modalBody: { color: '#BAC7DB', fontSize: 13, lineHeight: 21, marginTop: 12, marginBottom: 14 },
 });
